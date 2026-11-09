@@ -3,14 +3,14 @@ import * as maplibregl from "maplibre-gl";
 import maplibreglWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import axios from "axios";
-import { Search, X, SlidersHorizontal, Clock } from "lucide-react";
+import { Search, X, SlidersHorizontal, Clock, Antenna } from "lucide-react";
 import trafficImage from "../assets/traffic.png";
 
 if (typeof maplibregl.setWorkerUrl === "function") {
   maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 }
 
-const TrafficMap = ({ simulationMode = "realtime" }) => {
+const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
   const [records, setRecords] = useState([]);
   const [historicalData, setHistoricalData] = useState(null);
   const [selectedHistoricalKey, setSelectedHistoricalKey] =
@@ -94,7 +94,7 @@ const TrafficMap = ({ simulationMode = "realtime" }) => {
     const fetchTrafficData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:4000/api/traffic/heatmap",
+          "https://movilmerida.onrender.com/api/traffic/heatmap",
         );
         if (response.data.success) {
           setRecords(response.data.data);
@@ -385,17 +385,17 @@ const TrafficMap = ({ simulationMode = "realtime" }) => {
 
       {/* 5. BARRA DE REPRODUCCIÓN INFERIOR (Solo aparece en Modo Histórico) */}
       {simulationMode === "historical" && historicalData && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-5 py-3 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center space-x-4 pointer-events-auto animate-fade-in">
-          <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-400">
-            <Clock size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">
+        <div className="absolute bottom-20 md:bottom-6 left-16 sm:left-20 right-3 sm:right-auto md:left-1/2 md:right-auto md:-translate-x-1/2 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center space-x-2 sm:space-x-4 pointer-events-auto animate-fade-in overflow-x-auto no-scrollbar">
+          <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-400 flex-shrink-0">
+            <Clock size={16} />
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider hidden sm:inline">
               Evolución (Últimas 3 Horas):
             </span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
             <button
               onClick={() => setSelectedHistoricalKey("hourMinus2")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
                 selectedHistoricalKey === "hourMinus2"
                   ? "bg-emerald-600 text-white shadow-md"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
@@ -405,7 +405,7 @@ const TrafficMap = ({ simulationMode = "realtime" }) => {
             </button>
             <button
               onClick={() => setSelectedHistoricalKey("hourMinus1")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
                 selectedHistoricalKey === "hourMinus1"
                   ? "bg-emerald-600 text-white shadow-md"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
@@ -415,7 +415,7 @@ const TrafficMap = ({ simulationMode = "realtime" }) => {
             </button>
             <button
               onClick={() => setSelectedHistoricalKey("hourCurrent")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
                 selectedHistoricalKey === "hourCurrent"
                   ? "bg-emerald-600 text-white shadow-md"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
@@ -427,20 +427,48 @@ const TrafficMap = ({ simulationMode = "realtime" }) => {
         </div>
       )}
 
-      {/* 6. BOTÓN FLOTANTE MÓVIL (Inferior Izquierda) para desplegar filtros */}
-      <div className="absolute bottom-6 left-24 z-30 md:hidden pointer-events-auto">
+      {/* 6. BOTONES FLOTANTES MÓVILES (Inferior Izquierda): Modo Simulación y Filtros */}
+      <div className="absolute bottom-20 left-3.5 z-30 md:hidden pointer-events-auto flex flex-col space-y-2.5">
+        {/* Botón superior: Alternar Modo Histórico / En Vivo */}
+        <button
+          onClick={() => {
+            if (typeof setSimulationMode === "function") {
+              setSimulationMode((prev) =>
+                prev === "realtime" ? "historical" : "realtime"
+              );
+            }
+          }}
+          className={`p-3 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 transition-all active:scale-95 cursor-pointer ${
+            simulationMode === "historical"
+              ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/30"
+              : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/30"
+          }`}
+          title={
+            simulationMode === "historical"
+              ? "Modo Histórico (Clic para cambiar a Tiempo Real)"
+              : "Modo Tiempo Real (Clic para cambiar a Histórico)"
+          }
+        >
+          {simulationMode === "historical" ? (
+            <Antenna size={20} className="animate-pulse" />
+          ) : (
+            <Clock size={20} />
+          )}
+        </button>
+
+        {/* Botón inferior: Desplegar filtros */}
         <button
           onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-          className="bg-emerald-700 hover:bg-emerald-800 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 transition-transform active:scale-95"
+          className="bg-emerald-700 hover:bg-emerald-800 text-white p-3 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 transition-transform active:scale-95 cursor-pointer"
           title="Filtrar Tráfico y Buscar"
         >
-          <SlidersHorizontal size={22} />
+          <SlidersHorizontal size={20} />
         </button>
       </div>
 
       {/* MODAL / PANEL DESPLEGABLE MÓVIL */}
       {isMobileFiltersOpen && (
-        <div className="absolute left-24 right-4 bottom-20 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg p-5 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col space-y-4 md:hidden pointer-events-auto animate-fade-in">
+        <div className="absolute left-4 right-4 bottom-24 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg p-5 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col space-y-4 md:hidden pointer-events-auto animate-fade-in">
           <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <SlidersHorizontal size={16} className="text-emerald-600" />

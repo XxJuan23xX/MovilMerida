@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import TrafficMap from "./components/TrafficMap";
 import HeatmapView from "./components/HeatmapView";
+import AnalyticsView from "./components/AnalyticsView";
 import {
   Car,
   Map as MapIcon,
@@ -11,6 +12,7 @@ import {
   Activity,
   Clock,
   ShieldAlert,
+  BarChart3,
 } from "lucide-react";
 
 function App() {
@@ -39,17 +41,20 @@ function App() {
     <div
       className={`fixed inset-0 w-screen h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 ${darkMode ? "dark" : ""}`}
     >
-      {/* 1. MAPA DE FONDO (Ocupa exactamente el 100% de la ventana) */}
+      {/* 1. CONTENIDO PRINCIPAL (Mapa o Vista Analítica) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        {activeTab === "tramos" ? (
-          <TrafficMap simulationMode={simulationMode} />
-        ) : (
-          <HeatmapView />
+        {activeTab === "tramos" && (
+          <TrafficMap
+            simulationMode={simulationMode}
+            setSimulationMode={setSimulationMode}
+          />
         )}
+        {activeTab === "calor" && <HeatmapView />}
+        {activeTab === "analytics" && <AnalyticsView isExpanded={isExpanded} />}
       </div>
 
-      {/* 2. SIDEBAR MODERNO DE DOBLE COLUMNA */}
-      <aside className="absolute inset-y-0 left-0 h-screen z-30 flex shadow-2xl pointer-events-none">
+      {/* 2. SIDEBAR MODERNO DE DOBLE COLUMNA (Solo en Tablets y Escritorio 'md+') */}
+      <aside className="hidden md:flex absolute inset-y-0 left-0 h-screen z-30 shadow-2xl pointer-events-none">
         {/* Columna Izquierda: Iconos fijos (Pointer events habilitados) */}
         <div className="w-20 bg-emerald-800 dark:bg-gray-900 text-white flex flex-col items-center justify-between py-6 border-r border-emerald-700/50 dark:border-gray-800 select-none h-full pointer-events-auto transition-colors duration-300">
           {/* Logo Superior */}
@@ -96,6 +101,18 @@ function App() {
               title="Mapa de Calor"
             >
               <Flame size={20} />
+            </button>
+            {/* Botón de Analítica en la barra de iconos */}
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`p-3 rounded-2xl transition-all ${
+                activeTab === "analytics"
+                  ? "bg-white text-emerald-900 shadow-lg"
+                  : "text-emerald-200 hover:bg-emerald-700/50 dark:hover:bg-gray-800"
+              }`}
+              title="Panel Analítico"
+            >
+              <BarChart3 size={20} />
             </button>
           </div>
 
@@ -164,6 +181,18 @@ function App() {
                     <Flame size={18} />
                     <span>Mapa de Calor</span>
                   </button>
+
+                  <button
+                    onClick={() => setActiveTab("analytics")}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium text-sm transition-all ${
+                      activeTab === "analytics"
+                        ? "bg-white text-emerald-900 shadow-md font-semibold"
+                        : "text-emerald-100 dark:text-gray-300 hover:bg-emerald-600/40 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <BarChart3 size={18} />
+                    <span>Panel Analítico</span>
+                  </button>
                 </div>
               </div>
 
@@ -220,36 +249,118 @@ function App() {
             </div>
 
             {/* Tarjeta Inferior: Selector de Modo (Tiempo Real / Histórico) */}
-            <div className="p-3 bg-emerald-800/70 dark:bg-gray-800/80 rounded-2xl border border-emerald-600/40 dark:border-gray-700 text-center space-y-2 mt-6 shadow-sm">
-              <p className="text-[11px] font-medium text-emerald-200 dark:text-gray-300 tracking-wide">
-                Proyecto de Big Data Urbano
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 mt-2 bg-emerald-900/50 dark:bg-gray-900 p-1 rounded-xl">
-                <button
-                  onClick={() => setSimulationMode("realtime")}
-                  className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all ${
-                    simulationMode === "realtime"
-                      ? "bg-white text-emerald-900 shadow-md"
-                      : "text-emerald-200 hover:text-white hover:bg-emerald-700/50"
-                  }`}
-                >
-                  Tiempo Real
-                </button>
-                <button
-                  onClick={() => setSimulationMode("historical")}
-                  className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all ${
-                    simulationMode === "historical"
-                      ? "bg-white text-emerald-900 shadow-md"
-                      : "text-emerald-200 hover:text-white hover:bg-emerald-700/50"
-                  }`}
-                >
-                  Modo Histórico
-                </button>
+            {activeTab === "tramos" && (
+              <div className="p-3 bg-emerald-800/70 dark:bg-gray-800/80 rounded-2xl border border-emerald-600/40 dark:border-gray-700 text-center space-y-2 mt-6 shadow-sm">
+                <p className="text-[11px] font-medium text-emerald-200 dark:text-gray-300 tracking-wide">
+                  Proyecto de Big Data Urbano
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 mt-2 bg-emerald-900/50 dark:bg-gray-900 p-1 rounded-xl">
+                  <button
+                    onClick={() => setSimulationMode("realtime")}
+                    className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all ${
+                      simulationMode === "realtime"
+                        ? "bg-white text-emerald-900 shadow-md"
+                        : "text-emerald-200 hover:text-white hover:bg-emerald-700/50"
+                    }`}
+                  >
+                    Tiempo Real
+                  </button>
+                  <button
+                    onClick={() => setSimulationMode("historical")}
+                    className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all ${
+                      simulationMode === "historical"
+                        ? "bg-white text-emerald-900 shadow-md"
+                        : "text-emerald-200 hover:text-white hover:bg-emerald-700/50"
+                    }`}
+                  >
+                    Modo Histórico
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </aside>
+
+      {/* 3. BARRA DE NAVEGACIÓN INFERIOR PARA MÓVILES (< md) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-800 px-3 py-2 flex items-center justify-around shadow-2xl safe-area-bottom">
+        <button
+          onClick={() => setActiveTab("tramos")}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all cursor-pointer ${
+            activeTab === "tramos"
+              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+              : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+          }`}
+        >
+          <div
+            className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "tramos"
+                ? "bg-emerald-100 dark:bg-emerald-950/70"
+                : "bg-transparent"
+            }`}
+          >
+            <MapIcon size={20} />
+          </div>
+          <span className="text-[10px] mt-0.5">Tramos</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("calor")}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all cursor-pointer ${
+            activeTab === "calor"
+              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+              : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+          }`}
+        >
+          <div
+            className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "calor"
+                ? "bg-emerald-100 dark:bg-emerald-950/70"
+                : "bg-transparent"
+            }`}
+          >
+            <Flame size={20} />
+          </div>
+          <span className="text-[10px] mt-0.5">Calor</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all cursor-pointer ${
+            activeTab === "analytics"
+              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+              : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+          }`}
+        >
+          <div
+            className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "analytics"
+                ? "bg-emerald-100 dark:bg-emerald-950/70"
+                : "bg-transparent"
+            }`}
+          >
+            <BarChart3 size={20} />
+          </div>
+          <span className="text-[10px] mt-0.5">Analítica</span>
+        </button>
+
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className="flex flex-col items-center justify-center flex-1 py-1 rounded-2xl text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-amber-400 transition-all cursor-pointer"
+          title="Cambiar Tema"
+        >
+          <div className="p-1.5 rounded-xl bg-transparent">
+            {darkMode ? (
+              <Sun size={20} className="text-amber-400" />
+            ) : (
+              <Moon size={20} />
+            )}
+          </div>
+          <span className="text-[10px] mt-0.5">
+            {darkMode ? "Claro" : "Oscuro"}
+          </span>
+        </button>
+      </nav>
     </div>
   );
 }

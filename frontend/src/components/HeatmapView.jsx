@@ -23,7 +23,7 @@ const HeatmapView = () => {
     const fetchHeatmapData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:4000/api/traffic/heatmap",
+          "https://movilmerida.onrender.com/api/traffic/heatmap",
         );
         if (response.data.success) {
           setTrafficPoints(response.data.data);
