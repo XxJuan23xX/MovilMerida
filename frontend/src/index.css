@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom Modern Popup para MapLibre (Elimina la caja blanca por defecto) */
+.maplibregl-popup.custom-traffic-popup {
+  position: relative;
+  z-index: 50;
+}
+
+.maplibregl-popup.custom-traffic-popup .maplibregl-popup-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.maplibregl-popup.custom-traffic-popup .maplibregl-popup-tip {
+  border-width: 10px !important; /* Tamaño de la flecha */
+  border-color: transparent !important; /* Hacemos todos los bordes transparentes por defecto */
+}
+
+/* Dependiendo de hacia dónde apunte el popup, pintamos únicamente el borde correspondiente para formar el triángulo exacto */
+.maplibregl-popup.custom-traffic-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: #e5e7eb !important; /* Si la tarjeta está arriba, la punta apunta hacia abajo */
+}
+
+.maplibregl-popup.custom-traffic-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: #e5e7eb !important; /* Si la tarjeta está abajo, la punta apunta hacia arriba */
+}
+
+.maplibregl-popup.custom-traffic-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: #e5e7eb !important;
+}
+
+.maplibregl-popup.custom-traffic-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: #e5e7eb !important;
+}
+
+.maplibregl-popup.custom-traffic-popup .maplibregl-popup-close-button {
+  display: none !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 12px !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 9999px !important;
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  color: #4b5563 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  z-index: 20 !important;
+}
+
+.maplibregl-popup.custom-traffic-popup .maplibregl-popup-close-button:hover {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  color: #1f2937 !important;
+}
