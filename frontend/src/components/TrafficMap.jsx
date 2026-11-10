@@ -30,35 +30,67 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
 
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
-      alert("Tu navegador no soporta geolocalización.");
+      alert("Tu dispositivo o navegador no soporta geolocalización.");
       return;
     }
 
     setIsLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
+    const onLocationSuccess = (position) => {
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
 
-        setIsLocating(false);
-        setUserLocation({ lat: userLat, lng: userLng });
+      setIsLocating(false);
+      setUserLocation({ lat: userLat, lng: userLng });
 
-        // Centrar y volar suavemente a la ubicación del usuario
-        if (map.current) {
-          map.current.flyTo({
-            center: [userLng, userLat],
-            zoom: 15, // Zoom cercano a nivel de calle
-            essential: true,
-          });
-        }
-      },
-      (error) => {
+      // Centrar y volar suavemente a la ubicación del usuario
+      if (map.current) {
+        map.current.flyTo({
+          center: [userLng, userLat],
+          zoom: 16, // Zoom detallado para ver calles de Mérida
+          essential: true,
+        });
+      }
+    };
+
+    const onLocationError = (error) => {
+      // Si falla o agota el tiempo con satélite GPS (común bajo techo en iPhone o Android),
+      // reintentamos automáticamente con precisión estándar (antenas/Wi-Fi)
+      if (
+        error.code === error.TIMEOUT ||
+        error.code === error.POSITION_UNAVAILABLE
+      ) {
+        navigator.geolocation.getCurrentPosition(
+          onLocationSuccess,
+          (fallbackErr) => {
+            setIsLocating(false);
+            console.error("Error geolocalización fallback:", fallbackErr);
+            alert(
+              "No se pudo determinar tu ubicación. Asegúrate de tener el GPS activado en los ajustes de tu celular.",
+            );
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+        );
+      } else {
         setIsLocating(false);
         console.error("Error al obtener la ubicación:", error);
-        alert("No se pudo obtener tu ubicación. Verifica los permisos de GPS.");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+        if (error.code === error.PERMISSION_DENIED) {
+          alert(
+            "Permiso de ubicación denegado. Permite el acceso a tu ubicación en los ajustes del navegador de tu teléfono.",
+          );
+        } else {
+          alert(
+            "No se pudo obtener tu ubicación. Verifica que el GPS de tu celular esté encendido.",
+          );
+        }
+      }
+    };
+
+    // Intento 1: Alta precisión con timeout de 8 segundos
+    navigator.geolocation.getCurrentPosition(
+      onLocationSuccess,
+      onLocationError,
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 },
     );
   };
   // Estado con la hora y nivel activo proveniente de la simulación del backend
