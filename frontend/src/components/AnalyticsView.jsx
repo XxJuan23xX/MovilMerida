@@ -66,17 +66,20 @@ const hourlyData6 = [
 const timeRangeConfigs = {
   "24h": {
     label: "24 Horas",
-    subtitle: "Comportamiento histórico ponderado a lo largo de las 24 horas del día.",
+    subtitle:
+      "Comportamiento histórico ponderado a lo largo de las 24 horas del día.",
     data: hourlyData24,
   },
   "12h": {
     label: "12 Horas",
-    subtitle: "Comportamiento y caídas de velocidad durante las últimas 12 horas.",
+    subtitle:
+      "Comportamiento y caídas de velocidad durante las últimas 12 horas.",
     data: hourlyData12,
   },
   "6h": {
     label: "6 Horas",
-    subtitle: "Monitoreo vial detallado y reciente durante las últimas 6 horas.",
+    subtitle:
+      "Monitoreo vial detallado y reciente durante las últimas 6 horas.",
     data: hourlyData6,
   },
 };
@@ -261,7 +264,7 @@ const AnalyticsView = ({ isExpanded = false }) => {
           <div>
             <div className="flex items-baseline space-x-1">
               <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
-                45.2
+                47.15
               </span>
               <span className="text-sm font-bold text-slate-700 dark:text-gray-400">
                 km/h

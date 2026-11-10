@@ -385,7 +385,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
 
       {/* 5. BARRA DE REPRODUCCIÓN INFERIOR (Solo aparece en Modo Histórico) */}
       {simulationMode === "historical" && historicalData && (
-        <div className="absolute bottom-20 md:bottom-6 left-16 sm:left-20 right-3 sm:right-auto md:left-1/2 md:right-auto md:-translate-x-1/2 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center space-x-2 sm:space-x-4 pointer-events-auto animate-fade-in overflow-x-auto no-scrollbar">
+        <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:absolute md:bottom-6 left-16 sm:left-20 right-3 sm:right-auto md:left-1/2 md:right-auto md:-translate-x-1/2 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center space-x-2 sm:space-x-4 pointer-events-auto animate-fade-in overflow-x-auto no-scrollbar">
           <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-400 flex-shrink-0">
             <Clock size={16} />
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider hidden sm:inline">
@@ -428,7 +428,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
       )}
 
       {/* 6. BOTONES FLOTANTES MÓVILES (Inferior Izquierda): Modo Simulación y Filtros */}
-      <div className="absolute bottom-20 left-3.5 z-30 md:hidden pointer-events-auto flex flex-col space-y-2.5">
+      <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] left-3.5 z-30 md:hidden pointer-events-auto flex flex-col space-y-3">
         {/* Botón superior: Alternar Modo Histórico / En Vivo */}
         <button
           onClick={() => {
@@ -438,7 +438,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
               );
             }
           }}
-          className={`p-3 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 transition-all active:scale-95 cursor-pointer ${
+          className={`w-11 h-11 rounded-full shadow-xl flex items-center justify-center border-2 border-white/20 transition-all active:scale-95 cursor-pointer ${
             simulationMode === "historical"
               ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/30"
               : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/30"
@@ -459,7 +459,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
         {/* Botón inferior: Desplegar filtros */}
         <button
           onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-          className="bg-emerald-700 hover:bg-emerald-800 text-white p-3 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 transition-transform active:scale-95 cursor-pointer"
+          className="w-11 h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full shadow-xl flex items-center justify-center border-2 border-white/20 transition-transform active:scale-95 cursor-pointer shadow-emerald-700/30"
           title="Filtrar Tráfico y Buscar"
         >
           <SlidersHorizontal size={20} />
@@ -468,7 +468,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
 
       {/* MODAL / PANEL DESPLEGABLE MÓVIL */}
       {isMobileFiltersOpen && (
-        <div className="absolute left-4 right-4 bottom-24 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg p-5 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col space-y-4 md:hidden pointer-events-auto animate-fade-in">
+        <div className="fixed left-4 right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg p-5 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col space-y-4 md:hidden pointer-events-auto animate-fade-in max-h-[70dvh] overflow-y-auto">
           <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <SlidersHorizontal size={16} className="text-emerald-600" />
@@ -577,15 +577,15 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
       )}
 
       {/* 7. BADGE INFORMATIVO PRINCIPAL (PC y Móvil) */}
-      <div className="absolute top-4 right-14 sm:right-20 z-10 flex bg-white/95 dark:bg-gray-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl shadow-lg border border-gray-200/60 dark:border-gray-700/60 items-center space-x-2 pointer-events-auto transition-colors duration-300 max-w-fit">
+      <div className="absolute top-3 left-3 right-14 sm:right-20 sm:left-auto sm:w-auto z-10 flex bg-white/95 dark:bg-gray-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl shadow-lg border border-gray-200/60 dark:border-gray-700/60 items-center space-x-2 pointer-events-auto transition-colors duration-300">
         <span
           className="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse"
           style={{ backgroundColor: getCongestionColor(currentDisplay.level) }}
         />
         <span
-          className={`text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full transition-colors duration-300 ${getBadgeLevelStyle(currentDisplay.level)}`}
+          className={`text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full transition-colors duration-300 truncate ${getBadgeLevelStyle(currentDisplay.level)}`}
         >
-          {simulationMode === "historical" ? "Modo Histórico • " : ""}Mérida y
+          {simulationMode === "historical" ? "Histórico • " : ""}Mérida y
           Periférico • {currentDisplay.timeText} (
           {formatLevel(currentDisplay.level)})
         </span>

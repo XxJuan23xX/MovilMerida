@@ -39,7 +39,7 @@ function App() {
 
   return (
     <div
-      className={`fixed inset-0 w-screen h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 ${darkMode ? "dark" : ""}`}
+      className={`fixed inset-0 w-full h-[100dvh] overflow-hidden bg-gray-100 dark:bg-gray-950 ${darkMode ? "dark" : ""}`}
     >
       {/* 1. CONTENIDO PRINCIPAL (Mapa o Vista Analítica) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
@@ -283,7 +283,7 @@ function App() {
       </aside>
 
       {/* 3. BARRA DE NAVEGACIÓN INFERIOR PARA MÓVILES (< md) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-800 px-3 py-2 flex items-center justify-around shadow-2xl safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-800 px-3 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around shadow-2xl">
         <button
           onClick={() => setActiveTab("tramos")}
           className={`flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all cursor-pointer ${
