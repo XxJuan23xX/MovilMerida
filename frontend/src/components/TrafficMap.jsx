@@ -434,7 +434,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
           onClick={() => {
             if (typeof setSimulationMode === "function") {
               setSimulationMode((prev) =>
-                prev === "realtime" ? "historical" : "realtime"
+                prev === "realtime" ? "historical" : "realtime",
               );
             }
           }}
