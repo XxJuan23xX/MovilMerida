@@ -3,7 +3,14 @@ import * as maplibregl from "maplibre-gl";
 import maplibreglWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import axios from "axios";
-import { Search, X, SlidersHorizontal, Clock, Antenna } from "lucide-react";
+import {
+  Search,
+  X,
+  SlidersHorizontal,
+  Clock,
+  Antenna,
+  LocateFixed,
+} from "lucide-react";
 import trafficImage from "../assets/traffic.png";
 
 if (typeof maplibregl.setWorkerUrl === "function") {
@@ -17,7 +24,43 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
     useState("hourCurrent"); // 'hourMinus2', 'hourMinus1', 'hourCurrent'
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [userLocation, setUserLocation] = useState(null); // Coordenadas del usuario [lat, lng]
+  const [isLocating, setIsLocating] = useState(false);
+  const userMarkerRef = useRef(null);
 
+  const handleLocateUser = () => {
+    if (!navigator.geolocation) {
+      alert("Tu navegador no soporta geolocalización.");
+      return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+
+        setIsLocating(false);
+        setUserLocation({ lat: userLat, lng: userLng });
+
+        // Centrar y volar suavemente a la ubicación del usuario
+        if (map.current) {
+          map.current.flyTo({
+            center: [userLng, userLat],
+            zoom: 15, // Zoom cercano a nivel de calle
+            essential: true,
+          });
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        console.error("Error al obtener la ubicación:", error);
+        alert("No se pudo obtener tu ubicación. Verifica los permisos de GPS.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  };
   // Estado con la hora y nivel activo proveniente de la simulación del backend
   const [trafficInfo, setTrafficInfo] = useState({
     hour: null,
@@ -305,6 +348,61 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
     selectedLevels,
   ]);
 
+  // 4. Dibujar / Actualizar marcador azul de la ubicación del usuario (GPS)
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !userLocation) return;
+
+    // Si ya existe el marcador, solo actualizamos su posición suavemente
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+      return;
+    }
+
+    // Elemento HTML personalizado para el punto azul de GPS
+    const el = document.createElement("div");
+    el.className = "relative flex items-center justify-center cursor-pointer";
+
+    // Onda expansiva / pulso exterior azul
+    const pulse = document.createElement("div");
+    pulse.className =
+      "absolute w-9 h-9 rounded-full bg-blue-500/35 animate-ping";
+
+    // Halo azul translúcido
+    const halo = document.createElement("div");
+    halo.className = "absolute w-6 h-6 rounded-full bg-blue-500/40";
+
+    // Círculo central azul sólido con borde blanco y sombra
+    const core = document.createElement("div");
+    core.className =
+      "relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg";
+
+    el.appendChild(pulse);
+    el.appendChild(halo);
+    el.appendChild(core);
+
+    const userPopup = new maplibregl.Popup({
+      className: "custom-traffic-popup",
+      offset: 14,
+      closeButton: false,
+    }).setHTML(`
+      <div style="background-color: #1e3a8a; color: white; padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: system-ui, sans-serif; white-space: nowrap;">
+        📍 Mi ubicación actual
+      </div>
+    `);
+
+    userMarkerRef.current = new maplibregl.Marker({ element: el })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .setPopup(userPopup)
+      .addTo(map.current);
+
+    return () => {
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
+    };
+  }, [userLocation, mapLoaded]);
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* 4. BARRA SUPERIOR FLOTANTE (Visible solo en Tablets y PC 'md+') */}
@@ -426,6 +524,21 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
           </div>
         </div>
       )}
+
+      {/* 2. BOTÓN FLOTANTE DE GPS (Móvil y Escritorio) */}
+      <button
+        onClick={handleLocateUser}
+        disabled={isLocating}
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:absolute md:bottom-6 right-4 z-30 w-11 h-11 md:w-auto md:h-auto md:p-3 bg-white dark:bg-gray-900 text-slate-700 dark:text-white rounded-full md:rounded-2xl shadow-xl border border-gray-200/80 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center cursor-pointer active:scale-95"
+        title="Mi Ubicación Actual (GPS)"
+      >
+        <LocateFixed
+          size={20}
+          className={`text-blue-600 dark:text-blue-400 ${
+            isLocating ? "animate-spin" : ""
+          }`}
+        />
+      </button>
 
       {/* 6. BOTONES FLOTANTES MÓVILES (Inferior Izquierda): Modo Simulación y Filtros */}
       <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] left-3.5 z-30 md:hidden pointer-events-auto flex flex-col space-y-3">
