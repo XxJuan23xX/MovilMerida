@@ -17,13 +17,89 @@ if (typeof maplibregl.setWorkerUrl === "function") {
   maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 }
 
+// Nodos viales de Mérida respaldados para navegación sin conexión
+const FALLBACK_TRAFFIC_RECORDS = [
+  { _id: "f1", lat: 20.97465, lng: -89.64026, street: "Av. Itzáes (Frente al O'Horán)", speed: 25, congestion: "alto" },
+  { _id: "f2", lat: 21.02319, lng: -89.62094, street: "Prolongación Montejo x Periférico Norte", speed: 35, congestion: "alto" },
+  { _id: "f3", lat: 21.03574, lng: -89.62304, street: "Calle 60 Norte (Zona Gran Plaza)", speed: 45, congestion: "moderado" },
+  { _id: "f4", lat: 21.02702, lng: -89.57172, street: "Anillo Periférico Norte (Zona Altabrisa)", speed: 75, congestion: "bajo" },
+  { _id: "f5", lat: 21.03640, lng: -89.60265, street: "Avenida García Lavín x Periférico", speed: 50, congestion: "bajo" },
+  { _id: "f6", lat: 20.95220, lng: -89.56834, street: "Anillo Periférico Sur (Kanasín)", speed: 28, congestion: "alto" },
+  { _id: "f7", lat: 20.99525, lng: -89.67328, street: "Anillo Periférico Poniente (Caucel)", speed: 65, congestion: "bajo" },
+  { _id: "f8", lat: 20.98707, lng: -89.65953, street: "Avenida Jacinto Canek", speed: 40, congestion: "moderado" },
+  { _id: "f9", lat: 20.98996, lng: -89.61687, street: "Glorieta de Prolongación Montejo", speed: 18, congestion: "severo" },
+  { _id: "f10", lat: 20.99887, lng: -89.61592, street: "Glorieta de la Paz", speed: 30, congestion: "moderado" },
+  { _id: "f11", lat: 20.96838, lng: -89.62213, street: "Centro Histórico", speed: 15, congestion: "severo" },
+  { _id: "f12", lat: 20.94356, lng: -89.65794, street: "Avenida Aviación (Rumbo al Aeropuerto)", speed: 55, congestion: "bajo" },
+  { _id: "f13", lat: 20.92845, lng: -89.68079, street: "Carretera Mérida - Umán", speed: 35, congestion: "alto" },
+  { _id: "f14", lat: 20.96509, lng: -89.58824, street: "Calle 59 x Circuito Colonias", speed: 40, congestion: "moderado" },
+  { _id: "f15", lat: 20.91186, lng: -89.62034, street: "Anillo Periférico Sur", speed: 60, congestion: "bajo" },
+  { _id: "f16", lat: 20.93849, lng: -89.61577, street: "Universidad Tecnológica Metropolitana (UTM)", speed: 40, congestion: "moderado" },
+  { _id: "f17", lat: 20.94324, lng: -89.63001, street: "Villa Palmira", speed: 65, congestion: "bajo" },
+  { _id: "f18", lat: 20.98239, lng: -89.64605, street: "Unidad Deportiva Inalámbrica", speed: 65, congestion: "bajo" },
+  { _id: "f19", lat: 20.98374, lng: -89.67107, street: "Parque Extremo", speed: 65, congestion: "bajo" },
+];
+
+const FALLBACK_HISTORICAL = {
+  hourMinus2: {
+    hour: 12,
+    label: "12:00 hrs",
+    data: FALLBACK_TRAFFIC_RECORDS.map((r) => ({
+      ...r,
+      speed: r.congestion === "severo" ? 18 : r.speed,
+    })),
+  },
+  hourMinus1: {
+    hour: 13,
+    label: "13:00 hrs",
+    data: FALLBACK_TRAFFIC_RECORDS.map((r) => ({
+      ...r,
+      speed: r.congestion === "severo" ? 20 : r.speed,
+    })),
+  },
+  hourCurrent: {
+    hour: 14,
+    label: "14:00 hrs (Caché)",
+    data: FALLBACK_TRAFFIC_RECORDS,
+  },
+};
+
 const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
-  const [records, setRecords] = useState([]);
-  const [historicalData, setHistoricalData] = useState(null);
+  // Inicialización sincrónica desde localStorage para renderizado inmediato incluso sin internet
+  const [records, setRecords] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cached_traffic_records");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn("Lectura de caché local de records:", e);
+    }
+    return FALLBACK_TRAFFIC_RECORDS;
+  });
+
+  const [historicalData, setHistoricalData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cached_traffic_historical");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch (e) {
+      console.warn("Lectura de caché local de histórico:", e);
+    }
+    return FALLBACK_HISTORICAL;
+  });
+
   const [selectedHistoricalKey, setSelectedHistoricalKey] =
     useState("hourCurrent"); // 'hourMinus2', 'hourMinus1', 'hourCurrent'
-  const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
   const [userLocation, setUserLocation] = useState(null); // Coordenadas del usuario [lat, lng]
   const [isLocating, setIsLocating] = useState(false);
   const userMarkerRef = useRef(null);
@@ -94,10 +170,21 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
     );
   };
   // Estado con la hora y nivel activo proveniente de la simulación del backend
-  const [trafficInfo, setTrafficInfo] = useState({
-    hour: null,
-    level: "moderado",
-    timeStr: "",
+  const [trafficInfo, setTrafficInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cached_traffic_info");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch (e) {
+      console.warn("Lectura de caché local de trafficInfo:", e);
+    }
+    return {
+      hour: null,
+      level: "moderado",
+      timeStr: "",
+    };
   });
 
   // Reloj local en tiempo real para Mérida: hora numérica, minutos con 2 dígitos y AM/PM
@@ -164,30 +251,103 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
     }
   };
 
+  // Detección en tiempo real del estado de conexión a internet
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   // 1. Obtener datos de la API (Tiempo real e Histórico)
   useEffect(() => {
     const fetchTrafficData = async () => {
+      // Si el navegador ya sabe que no hay conexión, evitamos timeout y usamos caché
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setIsOnline(false);
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await axios.get(
           "https://movilmerida.onrender.com/api/traffic/heatmap",
+          { timeout: 4000 }
         );
         if (response.data.success) {
-          setRecords(response.data.data);
-          setHistoricalData(response.data.historical);
-          setTrafficInfo({
+          setIsOnline(true);
+          const fetchedRecords = response.data.data;
+          const fetchedHistorical = response.data.historical;
+          const fetchedInfo = {
             hour:
               response.data.meridaLocalHour !== undefined
                 ? response.data.meridaLocalHour
                 : null,
             level: response.data.activeSimulationRule || "moderado",
-          });
+          };
+
+          // Actualizamos estados con datos frescos de la red
+          setRecords(fetchedRecords);
+          setHistoricalData(fetchedHistorical);
+          setTrafficInfo(fetchedInfo);
+
+          // 💡 RESPALDO EN LOCALSTORAGE PARA MODO OFFLINE
+          try {
+            localStorage.setItem(
+              "cached_traffic_records",
+              JSON.stringify(fetchedRecords),
+            );
+            localStorage.setItem(
+              "cached_traffic_historical",
+              JSON.stringify(fetchedHistorical),
+            );
+            localStorage.setItem(
+              "cached_traffic_info",
+              JSON.stringify(fetchedInfo),
+            );
+          } catch (storageErr) {
+            console.warn("Error guardando en localStorage:", storageErr);
+          }
         }
       } catch (error) {
-        console.error("Error al obtener datos de tráfico:", error);
+        setIsOnline(false);
+        console.warn(
+          "Sin conexión con el servidor o timeout, usando datos respaldados localmente...",
+          error,
+        );
+
+        // 🔄 RECUPERAR DATOS DEL CACHÉ LOCAL CUANDO NO HAYA INTERNET
+        try {
+          const savedRecords = localStorage.getItem("cached_traffic_records");
+          const savedHistorical = localStorage.getItem(
+            "cached_traffic_historical",
+          );
+          const savedInfo = localStorage.getItem("cached_traffic_info");
+
+          if (savedRecords) {
+            const parsed = JSON.parse(savedRecords);
+            if (Array.isArray(parsed) && parsed.length > 0) setRecords(parsed);
+          }
+          if (savedHistorical) {
+            const parsed = JSON.parse(savedHistorical);
+            if (parsed) setHistoricalData(parsed);
+          }
+          if (savedInfo) {
+            const parsed = JSON.parse(savedInfo);
+            if (parsed) setTrafficInfo(parsed);
+          }
+        } catch (storageReadErr) {
+          console.warn("Error recuperando caché local:", storageReadErr);
+        }
       } finally {
         setLoading(false);
       }
     };
+
     fetchTrafficData();
     const interval = setInterval(fetchTrafficData, 60000);
     return () => clearInterval(interval);
@@ -220,6 +380,12 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
       map.current.once("load", onMapReady);
     }
 
+    // Fallback de seguridad: si al estar offline el evento 'load' tarda por recursos externos,
+    // garantizamos que los marcadores de tráfico se monten de inmediato
+    const fallbackTimer = setTimeout(() => {
+      setMapLoaded(true);
+    }, 1200);
+
     const handleResize = () => {
       if (map.current) {
         map.current.resize();
@@ -228,6 +394,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
     window.addEventListener("resize", handleResize);
 
     return () => {
+      clearTimeout(fallbackTimer);
       window.removeEventListener("resize", handleResize);
       if (map.current) {
         map.current.remove();
@@ -704,7 +871,12 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
           </div>
 
           {/* Badge Informativo integrado dentro del panel móvil */}
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-800 flex items-center justify-center">
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-800 flex items-center justify-center gap-2">
+            {!isOnline && (
+              <span className="text-[10px] bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full shadow-xs">
+                Offline (Caché)
+              </span>
+            )}
             <span
               className={`text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 transition-colors duration-300 ${getBadgeLevelStyle(currentDisplay.level)}`}
             >
@@ -723,6 +895,11 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
 
       {/* 7. BADGE INFORMATIVO PRINCIPAL (PC y Móvil) */}
       <div className="absolute top-3 left-3 right-14 sm:right-20 sm:left-auto sm:w-auto z-10 flex bg-white/95 dark:bg-gray-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl shadow-lg border border-gray-200/60 dark:border-gray-700/60 items-center space-x-2 pointer-events-auto transition-colors duration-300">
+        {!isOnline && (
+          <span className="text-[10px] bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+            Offline (Caché)
+          </span>
+        )}
         <span
           className="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse"
           style={{ backgroundColor: getCongestionColor(currentDisplay.level) }}
