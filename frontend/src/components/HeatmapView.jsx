@@ -4,6 +4,7 @@ import maplibreglWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import axios from "axios";
 import trafficImage from "../assets/traffic.png";
+import { HeatmapSkeleton } from "./Skeletons";
 
 if (typeof maplibregl.setWorkerUrl === "function") {
   maplibregl.setWorkerUrl(maplibreglWorkerUrl);
@@ -312,11 +313,7 @@ const HeatmapView = () => {
         </span>
       </div>
 
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-gray-950/80 text-gray-500 dark:text-gray-400 z-30 backdrop-blur-xs">
-          Generando mapa de calor de Mérida...
-        </div>
-      )}
+      {(loading || !mapLoaded) && <HeatmapSkeleton />}
 
       {/* Contenedor del mapa */}
       <div ref={mapContainer} className="w-full h-full" />

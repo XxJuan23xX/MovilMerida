@@ -12,6 +12,7 @@ import {
   LocateFixed,
 } from "lucide-react";
 import trafficImage from "../assets/traffic.png";
+import { MapSkeleton } from "./Skeletons";
 
 if (typeof maplibregl.setWorkerUrl === "function") {
   maplibregl.setWorkerUrl(maplibreglWorkerUrl);
@@ -1046,11 +1047,7 @@ const TrafficMap = ({ simulationMode = "realtime", setSimulationMode }) => {
         </span>
       </div>
 
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-gray-950/80 text-gray-500 dark:text-gray-400 z-30 backdrop-blur-xs">
-          Cargando nodos de tráfico...
-        </div>
-      )}
+      {(loading || !mapLoaded) && <MapSkeleton />}
 
       {/* Contenedor del mapa */}
       <div ref={mapContainer} className="w-full h-full" />

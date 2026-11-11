@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AnalyticsSkeleton } from "./Skeletons";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -234,8 +235,16 @@ const BarCustomTooltip = ({ active, payload }) => {
 };
 
 const AnalyticsView = ({ isExpanded = false }) => {
+  const [loading, setLoading] = useState(true);
   const [activeDonutIndex, setActiveDonutIndex] = useState(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState("24h");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const currentRangeConfig =
     timeRangeConfigs[selectedTimeRange] || timeRangeConfigs["24h"];
@@ -246,7 +255,11 @@ const AnalyticsView = ({ isExpanded = false }) => {
         isExpanded ? "md:pl-[392px]" : "md:pl-24 lg:pl-32"
       }`}
     >
-      {/* Encabezado / Título principal */}
+      {loading ? (
+        <AnalyticsSkeleton />
+      ) : (
+        <>
+          {/* Encabezado / Título principal */}
       <div className="flex flex-col mb-6 pt-2 px-1">
         <h2 className="text-2xl sm:text-3xl font-black text-slate-700 dark:text-white tracking-tight m-0">
           Dashboard Analítico
@@ -588,8 +601,10 @@ const AnalyticsView = ({ isExpanded = false }) => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 };
 
 export default AnalyticsView;

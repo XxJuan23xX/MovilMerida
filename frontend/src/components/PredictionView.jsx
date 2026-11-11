@@ -10,6 +10,7 @@ import {
   Activity,
   Calendar,
 } from "lucide-react";
+import { PredictionSkeleton, PredictionResultSkeleton } from "./Skeletons";
 
 // Las 26 vialidades registradas en la colección trafficrecords de MongoDB
 const MERIDA_STREETS = [
@@ -288,9 +289,18 @@ const PredictionView = ({ isExpanded = false }) => {
   const [day, setDay] = useState(getCurrentDayName);
   const [hour, setHour] = useState(8);
   const [loading, setLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [streetsList, setStreetsList] = useState(MERIDA_STREETS);
+
+  // Simulación de carga inicial fluida para mostrar Skeleton profesional
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Intentar cargar la lista dinámica de calles desde FastAPI si está activo
   useEffect(() => {
@@ -461,7 +471,11 @@ const PredictionView = ({ isExpanded = false }) => {
         isExpanded ? "md:pl-[392px]" : "md:pl-24 lg:pl-32"
       }`}
     >
-      {/* 1. ENCABEZADO PRINCIPAL */}
+      {isInitialLoading ? (
+        <PredictionSkeleton />
+      ) : (
+        <>
+          {/* 1. ENCABEZADO PRINCIPAL */}
       <div className="flex flex-col mb-6 pt-2 px-1 max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -643,23 +657,7 @@ const PredictionView = ({ isExpanded = false }) => {
             </div>
           )}
 
-          {loading && (
-            <div className="py-16 flex flex-col items-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-emerald-200 dark:border-emerald-950 border-t-emerald-600 animate-spin" />
-                <Brain
-                  className="absolute inset-0 m-auto text-emerald-600 animate-pulse"
-                  size={24}
-                />
-              </div>
-              <p className="mt-4 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                Consultando microservicio FastAPI...
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Evaluando árboles de decisión sobre la colección trafficrecords
-              </p>
-            </div>
-          )}
+          {loading && <PredictionResultSkeleton />}
 
           {result && !loading && (
             <div className="w-full space-y-6 text-left">
@@ -752,6 +750,8 @@ const PredictionView = ({ isExpanded = false }) => {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };
