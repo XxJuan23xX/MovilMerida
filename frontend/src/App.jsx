@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import TrafficMap from "./components/TrafficMap";
 import HeatmapView from "./components/HeatmapView";
 import AnalyticsView from "./components/AnalyticsView";
+import PredictionView from "./components/PredictionView";
 import {
   Car,
   Map as MapIcon,
@@ -13,6 +14,7 @@ import {
   Clock,
   ShieldAlert,
   BarChart3,
+  Brain,
 } from "lucide-react";
 
 function App() {
@@ -51,6 +53,7 @@ function App() {
         )}
         {activeTab === "calor" && <HeatmapView />}
         {activeTab === "analytics" && <AnalyticsView isExpanded={isExpanded} />}
+        {activeTab === "prediction" && <PredictionView isExpanded={isExpanded} />}
       </div>
 
       {/* 2. SIDEBAR MODERNO DE DOBLE COLUMNA (Solo en Tablets y Escritorio 'md+') */}
@@ -104,15 +107,33 @@ function App() {
             </button>
             {/* Botón de Analítica en la barra de iconos */}
             <button
-              onClick={() => setActiveTab("analytics")}
-              className={`p-3 rounded-2xl transition-all ${
-                activeTab === "analytics"
+              onClick={() => {
+                setActiveTab("analytics");
+                setIsExpanded(true);
+              }}
+              className={`p-3 rounded-2xl transition-all cursor-pointer ${
+                activeTab === "analytics" && isExpanded
                   ? "bg-white text-emerald-900 shadow-lg"
                   : "text-emerald-200 hover:bg-emerald-700/50 dark:hover:bg-gray-800"
               }`}
               title="Panel Analítico"
             >
               <BarChart3 size={20} />
+            </button>
+            {/* Botón de Machine Learning / IA en la barra de iconos */}
+            <button
+              onClick={() => {
+                setActiveTab("prediction");
+                setIsExpanded(true);
+              }}
+              className={`p-3 rounded-2xl transition-all cursor-pointer ${
+                activeTab === "prediction" && isExpanded
+                  ? "bg-white text-emerald-900 shadow-lg"
+                  : "text-emerald-200 hover:bg-emerald-700/50 dark:hover:bg-gray-800"
+              }`}
+              title="Predicción IA (Machine Learning)"
+            >
+              <Brain size={20} />
             </button>
           </div>
 
@@ -184,7 +205,7 @@ function App() {
 
                   <button
                     onClick={() => setActiveTab("analytics")}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium text-sm transition-all ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium text-sm transition-all cursor-pointer ${
                       activeTab === "analytics"
                         ? "bg-white text-emerald-900 shadow-md font-semibold"
                         : "text-emerald-100 dark:text-gray-300 hover:bg-emerald-600/40 dark:hover:bg-gray-800"
@@ -192,6 +213,18 @@ function App() {
                   >
                     <BarChart3 size={18} />
                     <span>Panel Analítico</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("prediction")}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium text-sm transition-all cursor-pointer ${
+                      activeTab === "prediction"
+                        ? "bg-white text-emerald-900 shadow-md font-semibold"
+                        : "text-emerald-100 dark:text-gray-300 hover:bg-emerald-600/40 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <Brain size={18} />
+                    <span>Predicción IA (ML)</span>
                   </button>
                 </div>
               </div>
@@ -342,6 +375,26 @@ function App() {
             <BarChart3 size={20} />
           </div>
           <span className="text-[10px] mt-0.5">Analítica</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("prediction")}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-2xl transition-all cursor-pointer ${
+            activeTab === "prediction"
+              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+              : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+          }`}
+        >
+          <div
+            className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "prediction"
+                ? "bg-emerald-100 dark:bg-emerald-950/70"
+                : "bg-transparent"
+            }`}
+          >
+            <Brain size={20} />
+          </div>
+          <span className="text-[10px] mt-0.5">Predicción</span>
         </button>
 
         <button
