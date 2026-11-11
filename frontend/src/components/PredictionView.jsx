@@ -296,9 +296,12 @@ const PredictionView = ({ isExpanded = false }) => {
   useEffect(() => {
     const fetchStreets = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/api/ml/streets", {
-          timeout: 2000,
-        });
+        const res = await axios.get(
+          "https://movilmerida-ak1o.onrender.com/api/ml/streets",
+          {
+            timeout: 2000,
+          },
+        );
         if (
           res.data?.success &&
           Array.isArray(res.data.streets) &&
@@ -411,7 +414,7 @@ const PredictionView = ({ isExpanded = false }) => {
 
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/ml/predict?hour=${hour}&street=${encodeURIComponent(street)}&day=${encodeURIComponent(day)}`,
+        `https://movilmerida-ak1o.onrender.com/api/ml/predict?hour=${hour}&street=${encodeURIComponent(street)}&day=${encodeURIComponent(day)}`,
         { timeout: 3500 },
       );
 
