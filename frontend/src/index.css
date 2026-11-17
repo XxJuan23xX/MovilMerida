@@ -102,3 +102,58 @@ html, body, #root {
   background-size: 200% 100%;
   animation: shimmerAnim 1.8s infinite ease-in-out;
 }
+
+/* Animaciones del Asistente IA (Esfera/Orb estilo Gemini & Typing) */
+@keyframes aiOrbFloat {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    box-shadow: 0 16px 36px -6px rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.025);
+    box-shadow: 0 22px 46px -4px rgba(5, 150, 105, 0.5);
+  }
+}
+
+.ai-orb-glow {
+  animation: aiOrbFloat 4s ease-in-out infinite;
+}
+
+/* Animación de entrada suave de las burbujas de chat estilo Gemini */
+@keyframes chatBubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-chat-bubble {
+  animation: chatBubbleIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Cursor parpadeante para efecto Typewriter */
+@keyframes cursorBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-cursor-blink {
+  animation: cursorBlink 0.8s infinite;
+}
+
+/* Ocultar barra de scroll estilo Gemini manteniendo desplazamiento nativo */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE y Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
