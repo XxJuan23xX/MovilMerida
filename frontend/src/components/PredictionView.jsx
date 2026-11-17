@@ -139,7 +139,7 @@ const PredictionView = ({ isExpanded = false }) => {
     setInput("");
     setLoading(true);
 
-    const API_URL = import.meta.env.VITE_ML_API_URL || "http://localhost:8000";
+    const API_URL = "https://movilmerida-ak1o.onrender.com" || "http://localhost:8000";
 
     try {
       const response = await axios.post(
