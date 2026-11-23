@@ -10,6 +10,6 @@ const TrafficAnalyticsSchema = new mongoose.Schema({
   congestion_level: { type: String, required: true }, // bajo, moderado, alto, severo
   vehicle_count_estimate: { type: Number, required: true },
   delay_minutes: { type: Number, required: true }
-});
+}, { collection: 'trafficanalytics' });
 
-module.exports = mongoose.model('TrafficAnalytics', TrafficAnalyticsSchema);
+module.exports = mongoose.model('TrafficAnalytics', TrafficAnalyticsSchema, 'trafficanalytics');

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { Download, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { AnalyticsSkeleton } from "./Skeletons";
 import {
   ResponsiveContainer,
@@ -238,6 +240,10 @@ const AnalyticsView = ({ isExpanded = false }) => {
   const [loading, setLoading] = useState(true);
   const [activeDonutIndex, setActiveDonutIndex] = useState(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState("24h");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState(null); // 'success' | 'error' | null
+  const [exportCount, setExportCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -245,6 +251,120 @@ const AnalyticsView = ({ isExpanded = false }) => {
     }, 400);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleExportCSV = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportStatus(null);
+    setErrorMessage("");
+
+    try {
+      // Intentar primero con backend local si estamos en localhost, o fallback a Render
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+
+      const endpoints = isLocal
+        ? [
+            "http://localhost:4000/api/traffic/analytics",
+            "https://movilmerida.onrender.com/api/traffic/analytics",
+          ]
+        : [
+            "https://movilmerida.onrender.com/api/traffic/analytics",
+            "http://localhost:4000/api/traffic/analytics",
+          ];
+
+      let records = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await axios.get(endpoint, { timeout: 10000 });
+          if (
+            res.data &&
+            res.data.success &&
+            Array.isArray(res.data.data) &&
+            res.data.data.length > 0
+          ) {
+            records = res.data.data;
+            break;
+          }
+        } catch {
+          // continuar con el siguiente endpoint de respaldo
+        }
+      }
+
+      if (!records || records.length === 0) {
+        throw new Error(
+          "No se pudieron recuperar los registros desde la base de datos.",
+        );
+      }
+
+      setExportCount(records.length);
+
+      // Estructurar encabezados y filas para el archivo CSV
+      const headers = [
+        "ID",
+        "Fecha_Hora",
+        "Hora",
+        "Dia_Semana",
+        "Zona",
+        "Sector",
+        "Velocidad_Promedio_kmh",
+        "Nivel_Congestion",
+        "Vehiculos_Estimados",
+        "Demora_Minutos",
+      ];
+
+      const rows = records.map((r) => [
+        `"${r._id || ""}"`,
+        `"${r.timestamp ? new Date(r.timestamp).toISOString() : ""}"`,
+        r.hour !== undefined ? r.hour : "",
+        `"${r.day_of_week || ""}"`,
+        `"${(r.zone_name || "").replace(/"/g, '""')}"`,
+        `"${(r.sector || "").replace(/"/g, '""')}"`,
+        r.average_speed_kmh !== undefined ? r.average_speed_kmh : "",
+        `"${r.congestion_level || ""}"`,
+        r.vehicle_count_estimate !== undefined ? r.vehicle_count_estimate : "",
+        r.delay_minutes !== undefined ? r.delay_minutes : "",
+      ]);
+
+      // Incluir BOM UTF-8 (\uFEFF) para compatibilidad con tildes y caracteres especiales en Excel y Google Sheets
+      const csvContent =
+        "\uFEFF" +
+        [headers.join(","), ...rows.map((row) => row.join(","))].join("\r\n");
+
+      // Crear Blob y disparar descarga en el navegador
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `movilmerida_trafficanalytics_${records.length}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setExportStatus("success");
+      setTimeout(() => setExportStatus(null), 4000);
+    } catch (err) {
+      console.error("Error al exportar CSV:", err);
+      setExportStatus("error");
+      setErrorMessage(
+        navigator.onLine === false
+          ? "Sin conexión a internet. Se requiere conexión para consultar la base de datos."
+          : "No se pudieron obtener los datos de la base de datos. Intenta nuevamente.",
+      );
+      setTimeout(() => setExportStatus(null), 5000);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const currentRangeConfig =
     timeRangeConfigs[selectedTimeRange] || timeRangeConfigs["24h"];
@@ -259,352 +379,414 @@ const AnalyticsView = ({ isExpanded = false }) => {
         <AnalyticsSkeleton />
       ) : (
         <>
-          {/* Encabezado / Título principal */}
-      <div className="flex flex-col mb-6 pt-2 px-1">
-        <h2 className="text-2xl sm:text-3xl font-black text-slate-700 dark:text-white tracking-tight m-0">
-          Dashboard Analítico
-        </h2>
-        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-          Monitoreo global del tráfico y comportamiento vial histórico en
-          Mérida.
-        </p>
-      </div>
-
-      {/* Tarjetas de Indicadores Clave (KPIs) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {/* Card 1: Velocidad Promedio */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
-                47.15
-              </span>
-              <span className="text-sm font-bold text-slate-700 dark:text-gray-400">
-                km/h
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
-              Velocidad Promedio Global
-            </p>
-          </div>
-          <div className="mt-4 pt-3">
-            <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
-          </div>
-        </div>
-
-        {/* Card 2: Demora en Picos */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
-                11.7
-              </span>
-              <span className="text-sm font-bold text-slate-700 dark:text-gray-400">
-                min
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
-              Demora Promedio en Picos
-            </p>
-          </div>
-          <div className="mt-4 pt-3">
-            <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
-          </div>
-        </div>
-
-        {/* Card 3: Volumen Vehicular */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
-                677k
-              </span>
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md ml-2">
-                1,500 Nodos
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
-              Volumen Vehicular Histórico
-            </p>
-          </div>
-          <div className="mt-4 pt-3">
-            <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sección de Gráficos Analíticos */}
-      <div className="flex flex-col gap-6">
-        {/* Gráfica 1: Tendencia Horaria (Líneas / Área) */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-gray-100 dark:border-gray-800">
+          {/* Encabezado / Título principal con botón de exportar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pt-2 px-1">
             <div>
-              <h3 className="text-base font-bold text-slate-700 dark:text-slate-100">
-                Tendencia Horaria de Velocidad vs Horas Pico
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {currentRangeConfig.subtitle}
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-700 dark:text-white tracking-tight m-0">
+                Dashboard Analítico
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
+                Monitoreo global del tráfico y comportamiento vial histórico en
+                Mérida.
               </p>
             </div>
-            <div className="flex items-center space-x-3 text-xs">
-              <div className="hidden sm:flex items-center space-x-1.5">
-                <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                <span className="text-gray-500 dark:text-gray-400 font-medium">
-                  Velocidad (km/h)
-                </span>
-              </div>
 
-              {/* Selector interactivo de rango horario: 24h - 12h - 6h */}
-              <div className="inline-flex items-center bg-slate-100 dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200/60 dark:border-gray-700/60 shadow-xs">
-                {[
-                  { key: "24h", label: "24 Horas", short: "24h" },
-                  { key: "12h", label: "12 Horas", short: "12h" },
-                  { key: "6h", label: "6 Horas", short: "6h" },
-                ].map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => setSelectedTimeRange(item.key)}
-                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
-                      selectedTimeRange === item.key
-                        ? "bg-white dark:bg-gray-700 text-emerald-700 dark:text-emerald-400 shadow-xs"
-                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    <span className="hidden sm:inline">{item.label}</span>
-                    <span className="sm:hidden">{item.short}</span>
-                  </button>
-                ))}
+            {/* Acción: Botón de Exportar CSV */}
+            <div className="flex flex-col items-start sm:items-end">
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={isExporting}
+                title="Exportar los datos de tráfico histórico a CSV"
+                className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm cursor-pointer select-none active:scale-95 disabled:cursor-not-allowed ${
+                  exportStatus === "success"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 shadow-emerald-500/20"
+                    : exportStatus === "error"
+                      ? "bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-500 shadow-rose-500/20"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-emerald-600/20"
+                }`}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Consultando BD (1,500)...</span>
+                  </>
+                ) : exportStatus === "success" ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <span>¡{exportCount || 1500} Datos Exportados!</span>
+                  </>
+                ) : exportStatus === "error" ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-white" />
+                    <span>Error al exportar</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 text-white" />
+                    <span>Exportar CSV</span>
+                  </>
+                )}
+              </button>
+
+              {/* Mensaje de error / estado contextual si ocurre falla */}
+              {exportStatus === "error" && errorMessage && (
+                <p className="text-[11px] text-rose-500 dark:text-rose-400 font-medium mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 inline shrink-0" />
+                  {errorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Tarjetas de Indicadores Clave (KPIs) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {/* Card 1: Velocidad Promedio */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
+              <div>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
+                    47.15
+                  </span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-gray-400">
+                    km/h
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
+                  Velocidad Promedio Global
+                </p>
+              </div>
+              <div className="mt-4 pt-3">
+                <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
+              </div>
+            </div>
+
+            {/* Card 2: Demora en Picos */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
+              <div>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
+                    11.7
+                  </span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-gray-400">
+                    min
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
+                  Demora Promedio en Picos
+                </p>
+              </div>
+              <div className="mt-4 pt-3">
+                <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
+              </div>
+            </div>
+
+            {/* Card 3: Volumen Vehicular */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between">
+              <div>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-black text-slate-700 dark:text-white tracking-tight">
+                    677k
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md ml-2">
+                    1,500 Nodos
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">
+                  Volumen Vehicular Histórico
+                </p>
+              </div>
+              <div className="mt-4 pt-3">
+                <div className="w-full bg-emerald-500 h-1.5 rounded-full"></div>
               </div>
             </div>
           </div>
 
-          <div className="w-full h-64 sm:h-72 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={currentRangeConfig.data}
-                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient
-                    id="speedGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#94a3b8"
-                  strokeOpacity={0.15}
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="hora"
-                  tick={{ fill: "#94a3b8", fontSize: 11 }}
-                  axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
-                  tickLine={false}
-                />
-                <YAxis
-                  unit=" km/h"
-                  domain={[0, 80]}
-                  tick={{ fill: "#94a3b8", fontSize: 11 }}
-                  axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
-                  tickLine={false}
-                />
-                <Tooltip content={<HourlyCustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="velocidad"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="url(#speedGradient)"
-                  isAnimationActive={true}
-                  animationDuration={600}
-                  animationEasing="ease-in-out"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Sección inferior: 2 Gráficas en 1 sola fila */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gráfica 2: Distribución de Congestión (Gráfica de Anillos con datos de _id) */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between mb-2">
+          {/* Sección de Gráficos Analíticos */}
+          <div className="flex flex-col gap-6">
+            {/* Gráfica 1: Tendencia Horaria (Líneas / Área) */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-gray-100 dark:border-gray-800">
                 <div>
                   <h3 className="text-base font-bold text-slate-700 dark:text-slate-100">
-                    Distribución de Niveles de Congestión
+                    Tendencia Horaria de Velocidad vs Horas Pico
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Clasificación y conteo de nodos según saturación vial.
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {currentRangeConfig.subtitle}
                   </p>
                 </div>
-                <span className="text-[11px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-semibold">
-                  1,500 nodos
-                </span>
-              </div>
-
-              {/* Contenedor del Anillo con valor central "1.5 mil" */}
-              <div className="relative w-full h-56 flex items-center justify-center my-2">
-                {/* Texto Central del Donut ("1.5 mil") en capa z-0 para que el tooltip quede siempre por encima */}
-                <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                  <span className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
-                    1.5 mil
-                  </span>
-                  <span className="text-[11px] font-medium text-gray-400 -mt-0.5">
-                    Total
-                  </span>
-                </div>
-
-                <div className="relative z-10 w-full h-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Tooltip
-                        content={<DonutCustomTooltip />}
-                        wrapperStyle={{ zIndex: 100, pointerEvents: "none" }}
-                      />
-                      <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={65}
-                        outerRadius={92}
-                        paddingAngle={2.5}
-                        dataKey="value"
-                        onMouseEnter={(_, index) => setActiveDonutIndex(index)}
-                        onMouseLeave={() => setActiveDonutIndex(null)}
-                      >
-                        {donutData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={entry.color}
-                            opacity={
-                              activeDonutIndex === null ||
-                              activeDonutIndex === index
-                                ? 1
-                                : 0.6
-                            }
-                            stroke="transparent"
-                          />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Leyenda y distribución en cuadrícula compacta */}
-              <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-gray-800">
-                {donutData.map((item) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between p-2 rounded-xl bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/60"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">
-                        {item.name}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-100">
-                      {item.value}{" "}
-                      <span className="text-[10px] text-gray-400 font-normal">
-                        ({item.percent})
-                      </span>
+                <div className="flex items-center space-x-3 text-xs">
+                  <div className="hidden sm:flex items-center space-x-1.5">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">
+                      Velocidad (km/h)
                     </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Gráfica 3: Gráfica de Barras por Sectores */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="text-base font-bold text-slate-700 dark:text-slate-100">
-                    Demora Promedio por Sectores
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    Minutos de retraso estimado en sectores viales críticos.
-                  </p>
+                  {/* Selector interactivo de rango horario: 24h - 12h - 6h */}
+                  <div className="inline-flex items-center bg-slate-100 dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200/60 dark:border-gray-700/60 shadow-xs">
+                    {[
+                      { key: "24h", label: "24 Horas", short: "24h" },
+                      { key: "12h", label: "12 Horas", short: "12h" },
+                      { key: "6h", label: "6 Horas", short: "6h" },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        onClick={() => setSelectedTimeRange(item.key)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
+                          selectedTimeRange === item.key
+                            ? "bg-white dark:bg-gray-700 text-emerald-700 dark:text-emerald-400 shadow-xs"
+                            : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <span className="hidden sm:inline">{item.label}</span>
+                        <span className="sm:hidden">{item.short}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-[11px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-semibold">
-                  Puntos Críticos
-                </span>
               </div>
 
-              {/* Gráfica de Barras con Recharts */}
-              <div className="w-full h-64 mt-3">
+              <div className="w-full h-64 sm:h-72 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={sectorData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                  <AreaChart
+                    data={currentRangeConfig.data}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                   >
+                    <defs>
+                      <linearGradient
+                        id="speedGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#10b981"
+                          stopOpacity={0.4}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#10b981"
+                          stopOpacity={0.0}
+                        />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="#94a3b8"
                       strokeOpacity={0.15}
-                      horizontal={false}
+                      vertical={false}
                     />
                     <XAxis
-                      type="number"
-                      unit=" min"
-                      domain={[0, 20]}
+                      dataKey="hora"
                       tick={{ fill: "#94a3b8", fontSize: 11 }}
                       axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
                       tickLine={false}
                     />
                     <YAxis
-                      dataKey="sector"
-                      type="category"
-                      tick={{ fill: "#94a3b8", fontSize: 10 }}
+                      unit=" km/h"
+                      domain={[0, 80]}
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
                       axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
                       tickLine={false}
-                      width={100}
                     />
-                    <Tooltip content={<BarCustomTooltip />} />
-                    <Bar dataKey="demora" radius={[0, 6, 6, 0]}>
-                      {sectorData.map((entry, index) => (
-                        <Cell key={`bar-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                    <Tooltip content={<HourlyCustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="velocidad"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#speedGradient)"
+                      isAnimationActive={true}
+                      animationDuration={600}
+                      animationEasing="ease-in-out"
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
+            </div>
 
-              {/* Pie de gráfica con nota explicativa */}
-              <div className="mt-2 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[15px] text-gray-500 dark:text-gray-400">
-                <span>
-                  Sector de mayor congestión:{" "}
-                  <strong className="text-rose-600 dark:text-rose-400">
-                    Centro Histórico
-                  </strong>
-                </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  Atlas Sync ✓
-                </span>
+            {/* Sección inferior: 2 Gráficas en 1 sola fila */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Gráfica 2: Distribución de Congestión (Gráfica de Anillos con datos de _id) */}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-700 dark:text-slate-100">
+                        Distribución de Niveles de Congestión
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Clasificación y conteo de nodos según saturación vial.
+                      </p>
+                    </div>
+                    <span className="text-[11px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-semibold">
+                      1,500 nodos
+                    </span>
+                  </div>
+
+                  {/* Contenedor del Anillo con valor central "1.5 mil" */}
+                  <div className="relative w-full h-56 flex items-center justify-center my-2">
+                    {/* Texto Central del Donut ("1.5 mil") en capa z-0 para que el tooltip quede siempre por encima */}
+                    <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                      <span className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+                        1.5 mil
+                      </span>
+                      <span className="text-[11px] font-medium text-gray-400 -mt-0.5">
+                        Total
+                      </span>
+                    </div>
+
+                    <div className="relative z-10 w-full h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Tooltip
+                            content={<DonutCustomTooltip />}
+                            wrapperStyle={{
+                              zIndex: 100,
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <Pie
+                            data={donutData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={65}
+                            outerRadius={92}
+                            paddingAngle={2.5}
+                            dataKey="value"
+                            onMouseEnter={(_, index) =>
+                              setActiveDonutIndex(index)
+                            }
+                            onMouseLeave={() => setActiveDonutIndex(null)}
+                          >
+                            {donutData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.color}
+                                opacity={
+                                  activeDonutIndex === null ||
+                                  activeDonutIndex === index
+                                    ? 1
+                                    : 0.6
+                                }
+                                stroke="transparent"
+                              />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Leyenda y distribución en cuadrícula compacta */}
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    {donutData.map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between p-2 rounded-xl bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/60"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                          {item.value}{" "}
+                          <span className="text-[10px] text-gray-400 font-normal">
+                            ({item.percent})
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Gráfica 3: Gráfica de Barras por Sectores */}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-200/80 dark:border-gray-800 p-6 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-700 dark:text-slate-100">
+                        Demora Promedio por Sectores
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        Minutos de retraso estimado en sectores viales críticos.
+                      </p>
+                    </div>
+                    <span className="text-[11px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-semibold">
+                      Puntos Críticos
+                    </span>
+                  </div>
+
+                  {/* Gráfica de Barras con Recharts */}
+                  <div className="w-full h-64 mt-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={sectorData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="#94a3b8"
+                          strokeOpacity={0.15}
+                          horizontal={false}
+                        />
+                        <XAxis
+                          type="number"
+                          unit=" min"
+                          domain={[0, 20]}
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          dataKey="sector"
+                          type="category"
+                          tick={{ fill: "#94a3b8", fontSize: 10 }}
+                          axisLine={{ stroke: "#94a3b8", strokeOpacity: 0.2 }}
+                          tickLine={false}
+                          width={100}
+                        />
+                        <Tooltip content={<BarCustomTooltip />} />
+                        <Bar dataKey="demora" radius={[0, 6, 6, 0]}>
+                          {sectorData.map((entry, index) => (
+                            <Cell key={`bar-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Pie de gráfica con nota explicativa */}
+                  <div className="mt-2 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[15px] text-gray-500 dark:text-gray-400">
+                    <span>
+                      Sector de mayor congestión:{" "}
+                      <strong className="text-rose-600 dark:text-rose-400">
+                        Centro Histórico
+                      </strong>
+                    </span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                      Atlas Sync ✓
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </>
-  )}
-</div>
-);
+        </>
+      )}
+    </div>
+  );
 };
 
 export default AnalyticsView;

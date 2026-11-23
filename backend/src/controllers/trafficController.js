@@ -1,4 +1,5 @@
-const TrafficRecord = require('../models/TrafficRecord'); // Ajusta la ruta según tu estructura
+const TrafficRecord = require('../models/TrafficRecord');
+const TrafficAnalytics = require('../models/TrafficAnalytics');
 
 // Función para determinar el estado de tráfico según una hora específica (o la actual de Mérida) y el tipo de vía
 const getSimulatedTrafficByHour = (streetName = '', customHour = null) => {
@@ -200,9 +201,68 @@ const getPeakHoursMetrics = async (req, res) => {
   }
 };
 
+// 4. Obtener todos los registros analíticos históricos (1,500 datos) de MongoDB Atlas
+const getTrafficAnalytics = async (req, res) => {
+  try {
+    const records = await TrafficAnalytics.find({}).sort({ timestamp: -1 });
+    res.status(200).json({
+      success: true,
+      count: records.length,
+      data: records
+    });
+  } catch (error) {
+    console.error("Error al obtener registros analíticos:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// 5. Exportar directamente en formato CSV los 1,500 registros analíticos
+const exportTrafficAnalyticsCSV = async (req, res) => {
+  try {
+    const records = await TrafficAnalytics.find({}).sort({ timestamp: -1 });
+
+    const headers = [
+      "ID",
+      "Fecha_Hora",
+      "Hora",
+      "Dia_Semana",
+      "Zona",
+      "Sector",
+      "Velocidad_Promedio_kmh",
+      "Nivel_Congestion",
+      "Vehiculos_Estimados",
+      "Demora_Minutos"
+    ];
+
+    const rows = records.map(r => [
+      `"${r._id}"`,
+      `"${r.timestamp ? new Date(r.timestamp).toISOString() : ''}"`,
+      r.hour,
+      `"${r.day_of_week || ''}"`,
+      `"${(r.zone_name || '').replace(/"/g, '""')}"`,
+      `"${(r.sector || '').replace(/"/g, '""')}"`,
+      r.average_speed_kmh,
+      `"${r.congestion_level || ''}"`,
+      r.vehicle_count_estimate,
+      r.delay_minutes
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(row => row.join(','))].join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="movilmerida_trafficanalytics_1500.csv"');
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    console.error("Error al exportar CSV:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   createTrafficRecord,
   getTrafficHeatmap,
   getHeatmapData: getTrafficHeatmap,
-  getPeakHoursMetrics
+  getPeakHoursMetrics,
+  getTrafficAnalytics,
+  exportTrafficAnalyticsCSV
 };
