@@ -382,7 +382,13 @@ def detect_street(norm_text: str, streets: list) -> Optional[str]:
     # 25. Búsqueda por palabras significativas dentro de la lista de calles
     for s in streets:
         s_norm = normalize_text(s)
-        words = [w for w in s_norm.split() if len(w) > 3 and w not in ["zona", "frente", "tramo", "calle", "avenida", "anillo"]]
+        words = [
+            w for w in s_norm.split() 
+            if len(w) > 3 and w not in [
+                "zona", "frente", "tramo", "calle", "avenida", "anillo", 
+                "merida", "norte", "oriente", "poniente", "prueba"
+            ]
+        ]
         for w in words:
             if re.search(r'\b' + re.escape(w) + r'\b', norm_text):
                 return s
@@ -464,12 +470,97 @@ def extract_day(norm_text: str) -> Optional[str]:
     return None
 
 
+def get_traffic_advice(matched_street: Optional[str] = None, norm_message: str = "", predicted_info: Optional[dict] = None) -> str:
+    """Genera recomendaciones y consejos viales prácticos y contextualizados para Mérida."""
+    if matched_street:
+        street_lower = matched_street.lower()
+        if "periférico" in street_lower or "periferico" in street_lower:
+            advice = (
+                "💡 Consejos para el Anillo Periférico de Mérida:\n\n"
+                "• Horas críticas: Las mayores retenciones ocurren de 07:30 a 09:00 hrs y de 18:30 a 20:30 hrs, especialmente en los distribuidores de Altabrisa, Caucel, salida a Umán y entronque a Kanasín.\n"
+                "• Carril estratégico: Para traslados largos, utiliza los carriles centrales; en las laterales la velocidad se reduce por incorporaciones continuas, retornos y paraderos de 'Va y Ven'.\n"
+                "• Glorietas y pasos a desnivel: En las glorietas bajo puente, disminuye la velocidad con antelación; recuerda que los vehículos que ya circulan dentro de la glorieta tienen preferencia de paso.\n"
+                "• Límites de velocidad: Respeta los 90 km/h en centrales y 80 km/h en laterales, guardando siempre distancia de frenado adecuada."
+            )
+        elif "centro" in street_lower:
+            advice = (
+                "💡 Consejos para el Centro Histórico de Mérida:\n\n"
+                "• Calles de mayor saturación: Las calles 59, 60, 62 y 65 concentran alta carga de peatones, ciclistas y paraderos; si tu destino no es el centro, rodea por Av. Colón o Circuito Colonias.\n"
+                "• Estacionamiento planificado: Dirígete directo a estacionamientos públicos establecidos (como en calles 62 o 64); buscar lugar en la vía pública puede demorar más de 20 minutos.\n"
+                "• Velocidad y precaución: Maneja a velocidad reducida (máximo 30-40 km/h) y extrema precauciones ante el cruce peatonal continuo y paraderos de autobús."
+            )
+        elif "itzáes" in street_lower or "itzaes" in street_lower or "ohorán" in street_lower or "ohoran" in street_lower:
+            advice = (
+                "💡 Consejos para la Av. Itzáes (Zona Hospitalaria):\n\n"
+                "• Carril de emergencia: Es un corredor hospitalario prioritario; procura mantener despejado el carril derecho para ambulancias y vehículos de auxilio.\n"
+                "• Horarios densos: De 07:00 a 09:30 hrs y de 13:00 a 15:30 hrs por cruce de personal médico, escuelas y pacientes del Hospital O'Horán y facultades UADY.\n"
+                "• Vías alternas: Para conectar el poniente con el sur o aeropuerto, valora tomar la Av. 86 o Circuito Colonias Poniente."
+            )
+        elif "canek" in street_lower or "caucel" in street_lower or "mérida 2000" in street_lower or "merida 2000" in street_lower:
+            advice = (
+                "💡 Consejos para Av. Jacinto Canek y acceso a Ciudad Caucel:\n\n"
+                "• Cuello de botella vespertino: El puente y distribuidor hacia Caucel presenta saturación severa de 18:00 a 20:30 hrs.\n"
+                "• Salidas estratégicas: Salir antes de las 17:45 hrs o después de las 20:45 hrs puede ahorrarte entre 20 y 35 minutos de espera en el distribuidor.\n"
+                "• Rutas alternativas: Considera incorporarte por Periférico Poniente o ramales de Av. Mérida 2000 según tu origen."
+            )
+        elif "montejo" in street_lower or "glorieta" in street_lower or "gran plaza" in street_lower or "calle 60" in street_lower:
+            advice = (
+                "💡 Consejos para Prolongación Montejo y Calle 60 Norte:\n\n"
+                "• Prioridad en Glorietas: En glorietas clave (Monumento a la Patria, Glorieta de la Paz, Fuente de Piedra), el vehículo que circula adentro tiene prioridad absoluta. Espera el claro seguro antes de ingresar.\n"
+                "• Uso de direccionales: Señaliza con suficiente tiempo tu salida de la glorieta para evitar frenadas bruscas en cadena.\n"
+                "• Picos escolares y corporativos: Toma precauciones entre 07:45 - 08:45 hrs rumbo al centro y 13:45 - 15:30 hrs en sentido norte."
+            )
+        elif "altabrisa" in street_lower or "garcía lavín" in street_lower or "garcia lavin" in street_lower or "macroplaza" in street_lower:
+            advice = (
+                "💡 Consejos para la Zona Altabrisa y Av. García Lavín:\n\n"
+                "• Horas de gran afluencia: Fuerte movimiento de 07:15 a 08:30 hrs por colegios y universidades, y de 18:00 a 20:30 hrs por centros comerciales y restaurantes.\n"
+                "• Tránsito en glorietas: Reduce la velocidad al aproximarte a las rotondas de Altabrisa y García Lavín; muchos conductores cambian de carril repentinamente para ingresar a plazas comerciales."
+            )
+        elif "umán" in street_lower or "uman" in street_lower or "aviación" in street_lower or "aviacion" in street_lower:
+            advice = (
+                "💡 Consejos para Carretera Mérida - Umán y Av. Aviación:\n\n"
+                "• Transporte pesado: Circulan numerosos camiones de carga industrial y transporte foráneo. Guarda al menos 3 vehículos de distancia para conservar visibilidad.\n"
+                "• Horarios de mayor carga: De 06:30 a 08:30 hrs y de 17:30 a 19:30 hrs por cambio de turno en parques industriales y maquiladoras."
+            )
+        else:
+            advice = (
+                f"💡 Consejos para transitar en {matched_street}:\n\n"
+                "• Planificación: Sal con 10 a 15 minutos de anticipación para evitar prisas durante las horas pico de Mérida (07:30-08:30 hrs y 18:30-20:00 hrs).\n"
+                "• Manejo defensivo: Mantén una distancia prudente con respecto al vehículo delantero y respeta la preferencia en glorietas e intersecciones de la zona."
+            )
+
+        if predicted_info:
+            advice += (
+                f"\n\n📊 Pronóstico para el {predicted_info.get('day')} a las {predicted_info.get('time_str')}:\n"
+                f"Velocidad estimada: {predicted_info.get('speed')} km/h con nivel de congestión {predicted_info.get('congestion')}."
+            )
+        return advice
+
+    # Consejos generales para Mérida
+    return (
+        "💡 Consejos y recomendaciones clave para evitar el tráfico en Mérida:\n\n"
+        "1. Anticipa las Horas Pico de la Ciudad:\n"
+        "   • Matutina (07:00 a 08:30 hrs): Entradas a colegios y oficinas hacia el Norte, Periférico y Centro.\n"
+        "   • Mediodía (13:30 a 15:00 hrs): Salida escolar y hora de comida con alta carga en avenidas comerciales.\n"
+        "   • Tarde-Noche (18:30 a 20:30 hrs): Retorno laboral con saturación en Periférico, Caucel y Kanasín.\n\n"
+        "2. Aprovecha los Horarios Fluidos:\n"
+        "   • Entre 10:00 y 12:30 hrs y después de las 21:00 hrs, la mayoría de avenidas y el Periférico circulan con excelente fluidez.\n\n"
+        "3. Regla de Oro en Glorietas:\n"
+        "   • En Mérida, quien circula dentro de la glorieta tiene preferencia total de paso. Cede el paso antes de ingresar y activa tus direccionales al salir.\n\n"
+        "4. Aprovecha Vías Intermedias y Rutas Alternas:\n"
+        "   • Si Periférico o las avenidas radiales se saturan, utiliza alternativas como Circuito Colonias, Av. Colón o Av. Mérida 2000.\n\n"
+        "5. Cuidados ante el Clima Yucateco:\n"
+        "   • El intenso calor puede afectar la temperatura del motor. Revisa periódicamente el nivel de anticongelante, batería y presión de neumáticos para evitar averías en medio del tráfico."
+    )
+
+
 @app.post("/api/ml/chat")
 def traffic_chat(payload: dict):
     """
     Endpoint conversacional de IA:
     Normaliza acentos, extrae de forma robusta la vialidad, hora y día,
-    aplica memoria de contexto conversacional y ejecuta el modelo Random Forest.
+    aplica memoria de contexto conversacional, responde a consejos viales
+    y ejecuta el modelo Random Forest.
     """
     message = payload.get("message", "").strip()
     history = payload.get("history", [])
@@ -507,6 +598,19 @@ def traffic_chat(payload: dict):
     extracted_h = extract_hour(norm_message)
     extracted_d = extract_day(norm_message)
 
+    # 2b. Detección de intención de consejos / recomendaciones
+    advice_keywords = [
+        "consejo", "consejos", "aconsejas", "aconsejar", "aconsejame", "aconsejarme",
+        "tip", "tips",
+        "recomendacion", "recomendaciones", "recomiendas", "recomendar", "recomiendame",
+        "sugerencia", "sugerencias", "sugieres", "sugerir", "sugiereme",
+        "evitar trafico", "evitar el trafico", "evitar congestion", "evitar embotellamiento",
+        "como evitar", "como librar", "como sortear", "mejores horas", "mejor hora",
+        "a que hora salir", "que hacer en el trafico", "que me sugieres", "como manejar",
+        "guia de trafico", "recomendame", "dar consejos", "dame consejos", "pedir consejos"
+    ]
+    is_advice_intent = any(re.search(r'\b' + re.escape(kw) + r'\b', norm_message) for kw in advice_keywords)
+
     # 3. Clasificación de Intención y Filtro Fuera de Dominio (Off-Topic)
     has_explicit_street = bool(matched_street)
 
@@ -541,29 +645,94 @@ def traffic_chat(payload: dict):
     if is_bot_inquiry:
         return {
             "success": True,
-            "response": "Soy el asistente inteligente de MovilMérida. Mi función exclusiva es ayudarte a consultar y predecir el tráfico, velocidades y niveles de congestión en las vialidades de Mérida, Yucatán."
+            "response": "Soy el asistente inteligente de MovilMérida. Mi función exclusiva es ayudarte a consultar y predecir el tráfico, velocidades, niveles de congestión y brindarte consejos viales útiles en Mérida, Yucatán."
         }
 
     if is_gratitude_or_bye:
         return {
             "success": True,
-            "response": "¡Con gusto! Recuerda que puedes consultarme el tráfico de cualquier calle o avenida de Mérida en cualquier momento. ¡Maneja con precaución!"
+            "response": "¡Con gusto! Recuerda que puedes consultarme el tráfico de cualquier calle o pedirme consejos para tus traslados en Mérida en cualquier momento. ¡Maneja con precaución!"
         }
 
-    if is_pure_greeting and not (has_explicit_street or has_traffic_intent or is_temporal_followup):
+    if is_pure_greeting and not (has_explicit_street or has_traffic_intent or is_temporal_followup or is_advice_intent):
         return {
             "success": True,
-            "response": "¡Hola! Soy tu asistente inteligente de MovilMérida. Pregúntame sobre el estado del tráfico, horas pico o vialidades de la ciudad (por ejemplo: '¿Cómo estará Av. Itzáes a las 11 am?' o 'Periférico Norte al mediodía')."
+            "response": "¡Hola! Soy tu asistente inteligente de MovilMérida. Pregúntame sobre el estado del tráfico o pídeme consejos viales (por ejemplo: '¿Cómo estará Av. Itzáes a las 11 am?' o '¿Qué consejos me das para evitar el tráfico en horas pico?')."
         }
 
-    # 3b. Validación estricta: Si la pregunta no menciona calle, ni intención de tráfico, ni es seguimiento temporal
-    is_valid_traffic_request = has_explicit_street or has_traffic_intent or is_temporal_followup
+    # Filtro específico para solicitudes de consejo sobre temas no viales (ej. cocina, amor, cripto)
+    non_traffic_topics = [
+        "amor", "novia", "novio", "pareja", "cocinar", "receta", "comida",
+        "adelgazar", "dieta", "programar", "codigo", "computadora", "videojuego",
+        "musica", "pelicula", "tarea", "bitcoin", "cripto", "dinero", "inversion"
+    ]
+    if is_advice_intent and any(re.search(r'\b' + re.escape(t) + r'\b', norm_message) for t in non_traffic_topics) and not (has_explicit_street or has_traffic_intent):
+        return {
+            "success": True,
+            "response": "Una disculpa, solo puedo ofrecerte consejos y recomendaciones referentes al tráfico vial, horarios de circulación y movilidad en Mérida, Yucatán. ¿Te gustaría algún consejo sobre las horas pico o vialidades como Periférico, Caucel o el Centro Histórico?"
+        }
+
+    # 3b. Validación estricta: Si la pregunta no menciona calle, ni intención de tráfico, ni es seguimiento temporal, ni pide consejos
+    is_valid_traffic_request = has_explicit_street or has_traffic_intent or is_temporal_followup or is_advice_intent
 
     if not is_valid_traffic_request:
         return {
             "success": True,
-            "response": "Una disculpa, solo puedo contestar preguntas referentes al tráfico vial, velocidades y movilidad en Mérida, Yucatán. Por favor, hazme una consulta sobre alguna calle, avenida o sector (por ejemplo: Periférico, Av. Itzáes, Caucel o Centro Histórico)."
+            "response": "Una disculpa, solo puedo contestar preguntas referentes al tráfico vial, velocidades y movilidad en Mérida, Yucatán. Por favor, hazme una consulta sobre alguna calle, avenida o sector (por ejemplo: Periférico, Av. Itzáes, Caucel o Centro Histórico), o pídeme consejos para evitar el tráfico."
         }
+
+    # 3c. Si la intención principal es dar consejos de tráfico
+    if is_advice_intent:
+        target_street = matched_street or (last_street if is_temporal_followup else None)
+        weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        current_day = weekdays[datetime.now().weekday()]
+        day_val = extracted_d if extracted_d is not None else (last_day or current_day)
+        hour_val = extracted_h if extracted_h is not None else (last_hour if last_hour is not None else 8)
+
+        if target_street:
+            # Calcular pronóstico predictivo para la calle consultada
+            try:
+                street_code = encoder_street.transform([target_street])[0]
+                day_code = encoder_day.transform([day_val])[0]
+                features_df = pd.DataFrame([[hour_val, street_code, day_code]], columns=["hour", "street_encoded", "day_encoded"])
+                predicted_speed = float(model.predict(features_df)[0])
+            except Exception:
+                predicted_speed = 32.0
+
+            congestion = "severo" if predicted_speed < 25 else "alto" if predicted_speed < 40 else "moderado" if predicted_speed < 60 else "bajo"
+            pred_info = {
+                "day": day_val,
+                "time_str": f"{hour_val:02d}:00 hrs",
+                "speed": round(predicted_speed, 1),
+                "congestion": congestion
+            }
+            advice_text = get_traffic_advice(target_street, norm_message, pred_info)
+            return {
+                "success": True,
+                "query_message": message,
+                "type": "advice",
+                "extracted_params": {
+                    "street": target_street,
+                    "day": day_val,
+                    "hour": hour_val
+                },
+                "prediction": {
+                    "predicted_average_speed_kmh": round(predicted_speed, 1),
+                    "estimated_congestion_level": congestion
+                },
+                "response": advice_text
+            }
+        else:
+            # Consejos generales para circular en Mérida
+            advice_text = get_traffic_advice(None, norm_message)
+            return {
+                "success": True,
+                "query_message": message,
+                "type": "advice",
+                "extracted_params": {},
+                "prediction": None,
+                "response": advice_text
+            }
 
     # 4. Asignación final con resolución de contexto
     if not matched_street:

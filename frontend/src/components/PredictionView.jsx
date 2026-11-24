@@ -96,10 +96,10 @@ const PredictionView = ({ isExpanded = false }) => {
 
   // Sugerencias rápidas para el inicio
   const suggestions = [
+    "¿Qué consejos me das para evitar el tráfico en Mérida?",
     "¿Cómo está el tráfico en Periférico Norte a las 8 am?",
-    "Tráfico en el Centro Histórico el viernes a las 18 hrs",
+    "Dame recomendaciones para circular por el Centro Histórico",
     "¿Qué tal la Av. Itzáes los lunes a las 9 am?",
-    "Estado de la Av. Canek los sábados por la tarde",
   ];
 
   const handleScroll = () => {
