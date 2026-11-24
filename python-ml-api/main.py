@@ -441,7 +441,7 @@ def extract_hour(norm_text: str) -> Optional[int]:
     if any(w in norm_text for w in ["hora pico", "pico", "salida de oficinas"]):
         return 18
     if any(w in norm_text for w in ["en la noche", "por la noche", "medianoche", "cena"]):
-        return 21
+        return 23
 
     return None
 
